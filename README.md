@@ -1,5 +1,5 @@
-# cs130
-CS130 Group Project Repository for Edward, Ryan, Sean, and Rohan 
+# Spreadsheet engine
+Software Engineering (CS130) Group Project Repository for Sean Zheng, Ryan Wong, Edward Speer, and Rohan Jha 
 
 ## Status
 
