@@ -1,0 +1,178 @@
+CS130 Project 1 - Design Document
+=================================
+
+Please answer all questions in this design document.  Note that the final 
+feedback section is optional, and you are not required to answer it if you don't
+want to.
+
+Unanswered or incompletely answered questions, or answers that don't actually 
+match the code/repository, will result in deductions.
+
+Answers don't have to be deeply detailed!  We are mainly looking for an overview
+or summary description of how your project works, and your team's experiences
+working on this project.
+
+Logistics (7 pts)
+-----------------
+
+L1.  [2pts] Enumerate all teammates here.
+
+Edward Speer, Ryan Wong, Sean Zheng, Rohan Jha
+
+
+L2.  [2pts] What did each teammate focus on during this project?
+
+Edward Speer: Focused on code design, repository organization, testing, test 
+automation, and error handling. Spearheaded merging of work from individual 
+branches into main. Maintained code quality and performed linting.
+
+Ryan Wong: Aided with the implementation of the engine, spreadsheet, workbook, 
+and cell classes, and testing
+
+Sean Zheng: mainly focused on designing and implementing iterative tarjan’s 
+algorithm with topological sort for cycle detection and order of cell 
+evaluation, aided with some testing.
+
+Rohan Jha: Focused on the first implementation of the engine, implementing the 
+spreadsheet, workbook, and cell classes and understanding how to start the 
+project. Aided with testing. 
+
+
+L3.  [3pts] Approximately how many hours did each teammate spend on the project?
+
+Each team member worked approximately 14 hours each on this project, through a
+combination of team meetings, group programming, and individual work.
+
+
+Spreadsheet Engine Design (20 pts)
+----------------------------------
+
+D1.  [3pts] Briefly describe the high-level design abstractions (e.g. classes
+and/or submodules) in your spreadsheet engine, and what purposes these various
+abstractions fulfill.
+
+For the high level abstractions, we have Workbook, Spreadsheet, and Cells classes that represent the structure of the
+spreadsheet engine. The Workbook Class is the highest level of the engine, containing all of the spreadsheets that the user
+creates. Below that is the Spreadsheet Class that contains the cells within that sheet. The purpose of the Workbook class is
+to coordinate the interactions of different sheets and cells to manage the formulas and dependencies across different sheets.
+The purpose of the Spreadsheet Class is to manage the individual cells within a single spreadsheet. It creates, modifies, and
+retrieves cells data and evaluates formulas. The purpose of the cell class is to manage the content, type, and value of the cell.
+We also have the Evaluator class that serves as a formula evaluator within the spreadsheet that allows users to input formulas
+that can reference other cells to perform calculations and display the updated results. We then have the CellInteractionGraph
+class to manage the dependencies between cells in a spreadsheet that references other cells. Lastly, we have the CellError class
+that represents the error types that can occur within the cells of a spreadsheet. 
+
+
+D2.  [4pts] Why did you choose the design you chose?  Describe other designs
+     (or perhaps earlier versions of the above design) that you considered,
+     and why you ended up not using them.
+
+We decided on this design because we felt it represented a holistic view of the project. That is, it goes from the highest
+level of abstraction (Workbook), and then contains classes for each “level” below that such as the individual Spreadsheets,
+and then the contents within each spreadsheet. We had started with this design decision, but classes like the evaluator, and
+cell interaction were additional classes that we implemented based on the project requirements. We had to make changes to these
+classes constantly; For example, initially we had the evaluator as a subclass within the spreadsheet class, but then moved it to
+a separate file as we felt it was quite extensive, and also had to add additional aspects such as cell references. 
+
+
+D3.  [4pts] At a high level (e.g. pseudocode or higher), enumerate the steps that your spreadsheet engine goes through when a
+caller sets a cell's contents.
+
+The process that our spreadsheet engine goes through when a caller sets a cell’s contents is to first locate the relevant
+spreadsheet object based on the sheet name. Then, the workbook calls spreadsheet.set_cell_contents to pass the cell location
+and the new content. The checks to see if the cell location is a valid location, and if it already exists, the contents are updated.
+If not, then the cell object is created and added to the spreadsheet’s cell dictionary. Next, the cell object determines the type
+based on the new content. If the content is a formula, the cell type is set to formula. The workbook then updates the CellInterationGraph.
+If the new content is a formula, it is updated to reflect the new dependencies. If the cell was previously a formula and was updated to
+not be, the cell and its dependencies are removed from CellInteractionGraph. We then check the formula for circular references using
+Tarjan’s algorithm. If a circular reference is detected, the cell’s value is set to an error. The workbook then recalculates the cells
+affected by this chance using the CellInteractionGraph to determine the order of the updates using topological sort. For each affected
+cell, the Evaluator is used to recalculate the cell’s value.
+	
+
+D4.  [3pts] How does your spreadsheet engine identify what other cells need updating when a cell's contents are changed, and what order to
+update them?
+
+In our graph structure, node A has an outgoing edge to node B iff the cell associated with node A references the cell associated with node B.
+When a cell’s contents are changed, we run Tarjan’s algorithm on the entire graph, which returns a topological ordering of the nodes we need
+to evaluate. This ensures a cell is not updated until all cells it depends on are updated.
+
+
+D5.  [3pts] How does your spreadsheet engine identify cycles between cells when a cell update is performed?  Are cells in a cycle processed
+any differently from other cells outside of the cycle?
+
+Our spreadsheet engine used Tarjan’s algorithm to identify cycles and cells that reference them. However, Tarjan’s algorithm just detects
+strongly connected components, so we needed a way to include the cells that reference SCCs as well. Our solution was to add a node to a
+set nodes_in_cycle if we encountered a cycle in the middle of Tarjan’s algorithm. This node was the last node we detected before figuring
+out that a cycle had occurred, so when we evaluate cells in the topological sorting the algorithm, we know that that node will be the first
+in the cycle that is evaluated and we can set it to a circular reference error while being sure that it will propagate to all other nodes in
+that cycle
+
+
+D6.  [3pts] What steps does your spreadsheet engine go through when a sheet is deleted from a workbook?  How does it identify cells that
+may need to be recomputed after a sheet-deletion operation?
+
+When a sheet is deleted, all the cells from that sheet are removed from the interaction graph. Tarjan’s algorithm is run on the graph
+to identify evaluation order of the remaining cells in the graph. If these cells are dependent on locations which have now been 
+deleted, then the formula will evaluate to a bad reference error. This is possible because the dependency graph maps 
+string locations to string locations instead of points to cell objects.
+
+Implementation Process (23 pts)
+-------------------------------
+
+P1.  [4pts] How did your team break down and keep track of the various tasks to complete for this project?  Did you use the GitHub
+issue tracker, or some other tool like Trello?
+
+Our team used the GitHub issue tracker extensively. We would work in different branches, and then review each other's code
+highlighting improvements, and giving suggestions. While reviewing code we would write comments about the next task required and
+would therefore keep track of all the work that needs to be done in a chronological order. Work is then merged into the 
+main branch through PRs which are tested. Group work was also frequently conducted using VSCode LiveShare to 
+enable quality peer programming.
+
+
+P2.  [4pts] How did you assign tasks to teammates?  Did you stick with your ask-assignments through the project, or did you shift
+around tasks as the project progressed?  Why?
+
+We did not set out with fixed tasks for each person as we felt that this could be inefficient in instances where we need to make
+major design changes. Instead, we discussed our approach to the project and tackled the required tasks sequentially. We would
+divide the work for each task amongst ourselves. (I.E running tests, writing a certain method within a class etc). This way we
+were able to adapt to the needs of our project and quickly address problems that arose. 
+
+
+P3.  [4pts] How would you characterize the quality of your project testing? Make sure to touch on these items:  Is it automated?
+Is it easy for teammates to run?  Is it fast?  Is it reasonably complete?
+
+We were very conscious of writing detailed tests throughout the process. Our tests were automated, and easy to run for every teammate,
+as we placed all of our tests in a single folder. The tests run quickly (Sub 30 seconds), which allowed us to promptly fix errors that occurred.
+The tests are complete and should test all of the project requirements. Testing is setup using Pytest, interfaced with 
+Github actions. We measured testing completeness both by scrutinizing the spec as well as through running code 
+coverage reports automatically through Github actions. We also set up automatic linting of the code 
+using Pylint and interfaced that with Github Actions.
+
+
+P4.  [3pts] What mechanisms did your team use for communication during the project?  Did you find them to be effective? 
+What issues did you encounter, if any?
+
+Our team organized meetings several times a week, where we would either go over each other’s code, or host a live session
+in VS code where we would work together, and plan the next steps of the project. We also created a text chat, where we would
+send updates that we made while working individually. Finally, we left comments on each other’s PR in github in order to expedite
+and document our errors, and future tasks. Overall, we found the combination of these methods to be extremely effective. 
+
+
+P5.  [3pts] Did you use any kind of collaborative construction techniques, e.g. code reviews or pair-programming, during the project? 
+If so, what are your observations about its usefulness?  Did you find it to have any downsides?
+
+During our organized group meetings, we used VS Code Live share in order to pair-program. We found this to be very useful as we were
+able to monitor each other’s work, and also constantly be on the same page. It felt much more efficient than coding individually, and
+then combining everything afterwards. It also cut down on any time spent managing conflicts across branches since 
+we were able to work collaboritively on a single feature branch at the same time.
+
+
+P6.  [5pts] What would you like to improve about your team's development process, going forward?
+
+One thing that we felt we could have done better was attempt to multitask, and reduce the impact of blockers we encounter. While
+implementing Tarjan’s algorithm we encountered errors that prohibited us from moving forward with other aspects of the project.
+Instead, we could have implemented a basic Dfs version, in order to expedite other parts of the process. This was also done in the
+lark evaluator, as we had initially implemented a transformer before changing it to an interpreter after further understanding the project.
+Overall, we could have been less averse to technical debt, as it is a long project that takes a substantial amount of time and getting
+stuck on one aspect for too long could harm us in the future.

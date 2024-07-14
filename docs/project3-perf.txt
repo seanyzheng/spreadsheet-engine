@@ -1,0 +1,63 @@
+## PROJECT3 PERFORMANCE IMPROVEMENT LOG ##
+
+## 2/6/24: 3:30 PM 
+ - Theory:    Updating every cell in the topological ordering on any operation
+              requiring cell updates is far too slow and would be improved by 
+              finding the first cell in the topo order which is changed and 
+              updating only starting from there.
+ - Rationale: According to our profiler, we spend over 95% of our time updating 
+              cells using Lark evaluation. This suggests we are doing Lark
+              evaluation way too much and way more than we should.
+ - Outcome:   Fixing this only for the case of single-cell content updates
+              already provided a 30% speedup of the per-call time of setting 
+              cell contents. Later we can find ways to improve this also for 
+              when sheets are renamed, added, or deleted.
+
+## 2/6/24: 4:30 PM
+ - Theory:    Currently, every time a formula cell's value is updated, the
+              formulas is being parsed (or re-parsed). Instead of doing this, 
+              caching the parse tree will definitely help speed the engine up.
+ - Rationale: 99% of cumulative time in updating a long chain of formulas is 
+              spent inside the lark parse function. Obviously this is the 
+              major current slow down.
+ - Outcome:   Truly MASSIVE performance increase. Cumulative time for updating a
+              chain of length 1000 is now less than half a second where before it 
+              was over a minute.
+
+## 2/7/24: 9:00PM
+ - Theory:    Caching results of various functions across the code may help with
+              speed.
+ - Rationale: We now make the bare minimum number of calls to Lark parse, and the 
+              graph algorithm is reasonably fast according to the profiler. Lots of 
+              cumulative sources now add up to the total time. Caching the results of 
+              the ones that are possible should allow small speedups for the functions 
+              likely to be called many times with the same arguments. For example the 
+              function that converts sheet columns to column numbers which is called 
+              well over 1000 times.
+ - Outcome:   Very moderate speedup in the performance tests, a couple seconds 
+              on the slowest tests.
+
+## 2/12/24: 9:30PM
+ - Theory:    Using lru_cache to save results of parse may be faster than storing
+              parse tree as a member of the cell class.
+ - Rationale: parsing is still taking over 2 seconds for the performance tests.
+              Given prof. Pinkston claims the acceptance tests should all run in
+              around a second, there must be a way to speed this up despite
+              currently doing the minimal number of calls. This is all I can come
+              up with.
+ - Outcome:   This actually did speed the test up by several seconds each. I don't
+              really understand why lru_cache access would be faster than direct
+              member access in a class but I am willing to take it.
+
+## 2/14/24: 11:00 am
+ - Theory:    Not saving the parse tree as a variable anywhere will improve the
+              performance of the engine.
+ - Rationale: Parsing is still taking way too long. I remember that once when I 
+              was working on the caching of parse trees, I cached but didn't save
+              the trees as class attributes of the cell class, and the
+              result was buggy, but faster and I couldn't figure out why. Now I 
+              think perhaps it is the act of saving the parse tree which is taking 
+              time for some reason.
+ - Outcome:   Large speedup of parsing compared to before! I don't really
+              understand why, but at least I fixed all the bugs and the engine 
+              got faster.

@@ -1,0 +1,228 @@
+CS130 Project 3 - Design Document
+=================================
+
+Please answer all questions in this design document.  Note that the final
+feedback section is optional, and you are not required to answer it if you
+don't want to.
+
+Unanswered or incompletely answered questions, or answers that don't actually
+match the code/repository, will result in deductions.
+
+Answers don't have to be deeply detailed!  We are mainly looking for an
+overview or summary description of how your project works, and your team's
+experiences working on this project.
+
+Logistics (7 pts)
+-----------------
+
+L1.  [2pts] Enumerate all teammates here.
+Rohan Jha, Eddie Speer, Ryan Wong, Sean Zheng
+
+
+L2.  [2pts] What did each teammate focus on during this project?
+Eddie and Sean -> Performance testing
+Ryan -> Relative and absolute cell reference handling in regexps and throughout code
+Rohan -> Moving and copying cells
+
+Everyone contributed on moving and copying cells as well
+
+
+L3.  [3pts] Approximately how many hours did each teammate spend on the project?
+We all spent roughly 12 hours on this project
+
+
+Spreadsheet Engine Design (9 pts)
+----------------------------------
+
+D1.  [3pts] Moving and copying regions of a sheet are very similar operations,
+     with only a few differences between them.  How did your team take advantage
+     of the similarity of these two operations to reduce the amount of code
+     required to provide this functionality?
+
+     While implementing both of these methods, we found that there were many similarities in 
+     how the spreadsheet is supposed to manage the adjustment of cell contents, errors, and overlapping 
+     regions. In fact, we were able to create a single helper method, with an additional boolean argument. 
+     When this was true we identified the method's purpose to be moving cell and when false it would be copying.
+     The purpose of this boolean would be to determine whether to clear the old cells or not, In the case of move 
+     we had to and in case of copy we did not. This was the only notable difference and thus we were able to remove a 
+     lot of redundant code. 
+
+
+D2.  [3pts] Similarly, moving/copying regions of a sheet, and renaming a sheet,
+     both involve formula updates.  Was your team able to factor out common
+     aspects of these two operations to reduce the amount of code required to
+     implement these operations?  If so, what did you do?  If not, why not?
+
+     The similarities in this case would be the use of regular expression to handle the formula 
+     processing and updating. We were able to identify relevant parts to update while retaining 
+     the desired functionality by manipulating the formulas using re and regexp. Being aware of this 
+     made the code much easier to write. We implemented different methods for the exact evaluation based 
+     on the varying requirements but were able to work around similar logic and to reuse some of the compiled 
+     regular expressions used in the renaming process.
+     
+     
+
+
+D3.  [3pts] How does your implementation address the challenges of moving or
+     copying a region of cells where the source and target regions overlap?
+     
+     Our code first evaluates the overlap region by checking if the final column/row 
+     preceeds the initial one (and vise versa). If so then we identify the cells that are in the overlap 
+     region and store their contents. This is done in order to preserve the content as when 
+     we are shifting the cells, when a cell is set with a new calue its old one would be lost,
+     and then it would create a cascading effect. We then iterate through the cells as usual,
+    
+     and first check if they are in the overlap storage.
+     then we set their contents directly from there. For move in particular, we clear the cells at the 
+     end except for the ones in the overlap region. 
+
+Static Code Analysis / Code Linting (16pts)
+-------------------------------------------
+
+L1.  [5pts] The Project 3 spec includes an example of a subtle implementation
+     bug with the Python counts(s, totals) function as written in the spec.
+     Briefly describe the cause of the buggy behavior, and what is the
+     recommended approach for avoiding the buggy behavior.
+
+     The cause of the buggy behavior is that the default argument '{}' for 
+     counts is mutable. This means that each time the function is called, the 
+     same dict is being edited instead of a different new local dict. To avoid this, 
+     use None as the default argument, and then check if the dict argument is 
+     none. If it is, then create a new dictionary to use. This way you will get
+     a new local dict each time.
+
+
+L2.  [4pts] What code-linter did your team use on your project?  Why did you
+     choose it?  Was this the first CS130 project in which you used a linter?
+
+    We chose to use pylint as our linter. We chose to use this because we have
+    some of us had previous experience using pylint, and we implemented this
+    in project 1. Would be interested to switch it up and try out Ruff in the 
+    future!
+
+
+L3.  [3pts] How did you automate the execution of your code linter?  Did
+     everyone in your team find it easy to run?
+     
+     In order to automate the execution of the linter, a few steps were taken. 
+     Firstly, a linter config file `pylintrc` is stored in the repo so that 
+     the behavior of the linter is the same for everyone. Second, a makefile was
+     created so that running `make lint` automatically calls pylint correctly with 
+     the correct directories passed. Finally, a Github actions workflow was created 
+     which runs on PRs such that only clean code may be merged into main.
+
+
+
+L4.  [4pts] Did the use of the linter improve your overall code quality and
+     correctness?  Give some specific details in your answer.  Were there any
+     serious issues (e.g. buggy language idioms) you were unaware of?
+
+     Yes, use of the linter improve our overall code quality and correctness.
+     Throughout all 3 projects, we would run our linter after we have implemented
+     and tested all of our functionality. This would give us feedback on which
+     tests and functions did not have docstrings and which lines were too long
+     for more simple fixes. Other ones were because there was access to a 
+     protected member. Since we have had the linter since project1, it didn't 
+     reveal any new serious issues that we were previously unaware of.
+
+
+Performance Improvement (18 pts)
+--------------------------------
+
+In this project you must improve the performance of two central areas of your
+spreadsheet engine - cell updating and cycle detection.  In the previous project
+your team should have written some performance-testing code in preparation for
+this effort, and should have run it under a profiler to get an initial sense of
+where improvements can be made.  In this project you will follow through on
+this investigation, and fix performance issues in your code.
+
+P1.  [7pts] Give a brief overview of 3-4 of the worst hot-spots you identified
+     in your performance testing and analysis.  For each one, describe how your
+     team was able to resolve it.
+     1) PARSING - parsing with lark formulas was taking up an insane amount of 
+     time. in order to improve this, we cached calls to parse using functools 
+     lru_cache decorator.
+     2) STILL PARSING - Not only were we parsing too many times, but calls to 
+     parse were also taking too long. In order to cut down on the time per call 
+     for parse, we switched the keyword argument ordered_sets=False for the parser
+     and still got a several second speedup.
+     3) TARJAN'S ALGORITHM - Tarjan's algorithm iterates over every node and every
+     ever edge in the graph every time any cell is changed. we attempted to opti-
+     mize it by creating a second graph identical to the first, except with edges
+     going in the opposite direction, mapping a cell to other cells that depended
+     on them. This way, we could seed Tarjan's algorithm at that cell, and we 
+     wouldn't need a topological ordering of the entire graph, we would just
+     update the original cell that was changed first, then the cells that depend on
+     it, then the cells that depend on those cells, and so on and so forth. We
+     ended up not using this approach because we werre told it may cause issues in
+     future projects. Something we did end up using was pre computing certain
+     values, which was effective because many identical calculations are made
+     many times in Tarjan's algorithm.
+     4) FORMULA EVALUATION - Previously, we updated every single formula cell in 
+     the workbook every time a cell was changed. However this can be trimmed down 
+     in time if you iterate over the topological ordering of the cells until you 
+     find the first cell which ihas changed from the operation you did on the 
+     workbook, and update from there.
+
+P2.  [4pts] Did your team try anything to resolve performance issues and find
+     that it didn't improve things at all - perhaps even made things worse?
+     If so, were you able to identify why the intended fix didn't produce the
+     desired benefit?
+     
+     Initially, we tried to store the parse tree of each formula within the cell 
+     that it belonged to to avoid calling parse as often. This provided some 
+     speedup, but not anywhere near as much as caching using lru_cache. Still not 
+     sure why this is, but probaby due to some impressive optimization of lru_cache.
+     We tried MANY MANY different approaches on the lark parsing improvement. We 
+     dedicated significant effort towards trying to be able to use the LALR parser 
+     from Lark, which was counterproductive since it is not compatible with our 
+     grammar. 
+
+     For the Tarjan's algorithm optimization, nothing we did had no 
+     improvement, but some improvements had much less of an effect than we 
+     predicted. For example,after we added the reversed graph, but before we 
+     tried running Tarjan's algorithm on that reverse graph, so when we were 
+     still iterating over all the nodes and running Tarjan's on the regular 
+     graph, we tried to save some time by skipping cells that no other cells 
+     depended on. However, we found that for a lot of cases in the performance
+     tests, there weren't many of  these types of cells. Furthermore, the 
+     additional check added some time to each function call, so although we 
+     had less total calls, the function itself took slightly longer.
+
+P3.  [4pts] How do you feel that your performance updates affected your code's
+     readability and maintainability?  Did it make it better? worse? unchanged?
+     Elaborate on your answer.
+
+     I would say that the performance improvements didn't really impact the code's
+     readability or maintainability. Many more function decorators were used 
+     which could make the code slightly less readable, but these cases were well 
+     documented within docstrings. Since the primary changes were in 2 small areas
+     in the code, just parsing and Tarjan's algorithm, I would say that the amount of 
+     code that was actually changed was relatively tiny in comparison to the size 
+     of the code base. All in all this meant that the overall readability was largely 
+     unaffected.
+
+     For the Tarjan's algorithm optimization, it was definitely more difficult
+     to maintain both the reversed graph and the original graph because we had
+     to add, remove, and update edges in both graphs every time cells were
+     changed. Naming also became more confusing.
+
+P4.  [3pts] Did your performance updates cause any regressions in functionality?
+     If so, briefly describe any issues that emerged.  How were these issues
+     identified (e.g. automated test failures, manual testing, etc.)?  How
+     quickly were issues identified?
+
+     My many attempts to improve parsing caused occassional regressions. Many times
+     I would attempt to cache something new by wrapping a function in a decorator 
+     and the cached values would be returned when some detail about the workbook 
+     outside of the argument values implied the return value should have changed. In 
+     these cases, the automated tests failed in about 50 different places
+     immediately. There was also a case in which my performance improvements led me 
+     to a much better solution for catching parse errors that I implemented correctly, 
+     but later when I tried to return and edit it, I forgot to set cells as parse 
+     errors correctly and again was greeted with many failed automated tests.
+
+     For the Tarjan's algorithm optimizations, no regressions in functionality 
+     occurred in this project. However, we were advised not to continue or
+     even implement the optimizations we had already done because it would 
+     likely interfere with functionality required for future projects.

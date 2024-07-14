@@ -1,0 +1,220 @@
+CS130 Project 4 - Design Document
+=================================
+
+Please answer all questions in this design document.  Note that the final
+feedback section is optional, and you are not required to answer it if you
+don't want to.
+
+Unanswered or incompletely answered questions, or answers that don't actually
+match the code/repository, will result in deductions.
+
+Answers don't have to be deeply detailed!  We are mainly looking for an
+overview or summary description of how your project works, and your team's
+experiences working on this project.
+
+Logistics (7 pts)
+-----------------
+
+L1.  [2pts] Enumerate all teammates here.
+
+Edward Speer, Ryan Wong, Sean Zheng, and Rohan Jha
+
+
+L2.  [2pts] What did each teammate focus on during this project?
+
+Edward Speer -> Boolean support, compariosn operators, and structure/function of
+                function directory
+
+
+L3.  [3pts] Approximately how many hours did each teammate spend on the project?
+
+Everyone spent around 12 hours on this project.
+
+
+Spreadsheet Engine Design (31 pts)
+----------------------------------
+
+D1.  [3pts] Briefly describe the changes you made to the Lark parser grammar
+     to support Boolean literals.
+
+To include boolean literals, a new base value, BOOL was added to the ?base rule 
+in the grammar. A new BOOL terminal was added consisting of either true or false 
+in a case insensitive manner (using i).
+     
+
+D2.  [4pts] Briefly describe the changes you made to the Lark parser grammar
+     to support conditional expressions.  How did you ensure that conditional
+     operations are lower precedence than arithmetic and string concatenation
+     operations?
+
+To support comparison operators, a new expression type ?comp_expr was created 
+in a similar way to the other types of expressions with operators; left deep as 
+(comp_expr COMP_OP)? valid_comp_oper. In order to ensure that the operators were 
+lower process than arithmetic and string operators, the "valid_comp_oper" was 
+created to define the allowed operands of comparison operators. These consisted of 
+either add expressions or concatenation expressions, such that these become lower 
+precedence. A COMP_OP terminal was created which was just the "or" of all of the 
+allowed comparison operator symbols.
+
+
+D3.  [6pts] Briefly describe how function invocation works in your spreadsheet
+     engine.  How easy or hard would it be for you to add new functions to your
+     engine?  What about a third-party developer?  How well does your code
+     follow the Open/Closed Principle?
+
+When a function is included in a cell formula, the evaluator uses the grammar rules
+to separate the function name and the list of arguments sent to it. These are then 
+sent as arguments to a `FuncDir` object, which holds a set of rules and a point to 
+the function evaluator for each allowed function in the workbook. The FuncDir checks to 
+ensure the name is in its function dictionary, and that the arguments comply with 
+the function's requirements. Then calls the corresponding executable on the argument
+list. Our implementation could be added to very easily. Currently there is a default 
+list of function entries in the FuncDir of each workbook, but the FuncDir object 
+can very easily be added to by adding a new entry in the dictionary beside the defaults. 
+A third-party developer should also be able to add new functions to the workbook 
+by similarly building and adding new entries to the dictionary, a process which is 
+well documented. We have followed the open/closed principle by both enforcing the 
+defaulr functions to be in each workbook (such that one cannot break the desired 
+minimum set of functions) and by providing easy extension of the function directory
+by creating a new independent function entity and adding it to the directory, without 
+making any changes to source code.
+
+
+D4.  [4pts] Is your implementation able to lazily evaluate the arguments to
+     functions like IF(), CHOOSE() and IFERROR()?  (Recall from the Project 4
+     spec that your spreadsheet engine should not report cycles in cases where
+     an argument to these functions does not need to be evaluated.)  If so,
+     what changes to your design were required to achieve this?  If not, what
+     prevented your team from implementing this?
+
+    YES. In order to lazily evaluate arguments, we had to first evaluate just the
+    condition of the function. Then, based on the result of that condition, we had
+    to manually call lark.visit on the appropriate argument. We had to remove the 
+    decorator for the method in our evaluator that evaluates functions in order to
+    achieve this.
+
+
+D5.  [4pts] Is your implementation able to evaluate the ISERROR() function
+     correctly, with respect to circular-reference errors?  (Recall from the
+     Project 4 spec that ISERROR() behaves differently when part of a cycle,
+     vs. being outside the cycle and referencing some cell in the cycle.)
+     If so, what changes to your design were required to achieve this?  If
+     not, what prevented your team from implementing this?
+
+    Yes. Using tarjan's algorithm, we were able to identify both nodes in 
+    non trivial strongly connected components, as well as nodes that just
+    referred to them. Any node in a non trivial scc is set to a circref.
+    However, for nodes that refer to them, ISERROR() should be allowed to 
+    evaluate, whereas any other node should not be.
+
+D6.  [4pts] Is your implementation able to successfully identify cycles that
+     are not evident from static analysis of formulas containing INDIRECT()?
+     If so, what changes to your design were required, if any, to achieve this?
+     If not, what prevented your team from implementing this?
+
+    Yes. We did this by repeatedly running tarjan's algorithm, and then evaluating
+    and adding evaluation time dependencies, until we got through a full evaluation
+    that did not add any new dependencies to the graph. To do this, we needed to now
+    send in the cell to the Evaluator and edit the method in the evaluator that
+    evaluates cells so that we could add any references that were not already in the
+    graph. We also needed to keep track of these dependencies so that they could be
+    removed from the graph after all the cells were updated.
+
+D7.  [6pts] Project 4 has a number of small but important operations to
+     implement.  Comparison operations include a number of comparison and type
+     conversion rules.  Different functions may require specific numbers and
+     types of arguments.  How did your team structure the implementation of
+     these operations?  How did your approach affect the reusability and
+     testability of these operations?
+
+     We handled these two cases somewhat differently from each other. For comparison 
+     operators, a general comparison method was written which takes in any combination
+     of the valid types in the workbook and compares them (i.e bools, string, numbers).
+     This returns -1, 0, 1 for less than, equal, greater than. Then there is a match 
+     statement dispatching between the different operators and returning the correct 
+     bool dependent on the operator and comparison value. However, to avoid this 
+     type of large switch case in function evaluation, we created the funcdir as 
+     recommended in the spec. For every function, we create a new object called 
+     FuncInfo which holds the maximum and minimum number of arguments, and type 
+     requirements on all arguments as applicable. One general function is then able 
+     to check and convert the arguments to any function called, and then since arguments are passed 
+     as a simple list to the evaluation function, each functions evaluation function 
+     may simply be called on the arg list.
+
+
+
+Performance Analysis (12 pts)
+-----------------------------
+
+In this project you must measure and analyze the performance of features that
+generate large bulk changes to a workbook:  loading a workbook, copying or
+renaming a sheet, and moving or copying an area of cells.  Construct some
+performance tests to exercise these aspects of your engine, and use a profiler
+to identify where your program is spending the bulk of its time.
+
+A1.  [4pts] Briefly enumerate the performance tests you created to exercise
+     your implementation.
+
+     We ran perforance tests on the following functionalities:
+
+     1. Save/load workbook
+     2. copy/rename sheet
+     3. copy/move cells
+
+
+A2.  [2pts] What profiler did you choose to run your performance tests with?
+     Why?  Give an example of how to invoke one of your tests with the profiler.
+
+     We decided to use cProfile to run our performance tests becuase it was what
+     we had previously used in Projects 2 and 3. The way that we invoked one of
+     our tests with the profiler, specifically the rename sheets, was to set it
+     up within the m_n_row_mesh() test function. After the setup of the workbook
+     and corresponding sheets was finished, we set the profiler to run, created
+     a variable for the time, called the rename_sheet() function, and then
+     calculated the end time after the call was completed. We found the total
+     time that the function used to run was the difference between the two. We
+     then outputted the sorted stats into our .txt file. 
+
+
+A3.  [6pts] What are ~3 of the most significant hot-spots you identified in your
+     performance testing?  Did you expect these hot-spots, or were they
+     surprising to you?
+
+     The most significant hotspots that we found while testing these functions 
+     were the move_cell and copy cell functionalities. We did expect these to be
+     hot spots becauses these both make calls to set_cell_contents and 
+     update_cells() which take up more time from tarjan's algorithm and
+     updating them through topological ordering. 
+
+
+Section F:  CS130 Project 3 Feedback [OPTIONAL]
+-----------------------------------------------
+
+These questions are OPTIONAL, and you do not need to answer them.  Your grade
+will not be affected by answering or not answering them.  Also, your grade will
+not be affected by negative feedback - we want to know what went poorly so that
+we can improve future versions of the course.
+
+F1.  What parts of the assignment did you find highly enjoyable?  Conversely,
+     what parts of the assignment did you find unenjoyable?
+
+     I enjoyed writing clever evaluation functions for some of the functions in
+     the the FuncDir - for example the functional inspired implementations of the 
+     boolean functions.
+
+     I did not enjoy just how many cases there were which required testing in this 
+     project. So many combinations of operators and functions took many lines and 
+     much time to test.
+
+
+F2.  What parts of the assignment helped you learn more about software
+     engineering best-practices, or other useful development skills?
+     What parts were not helpful in learning these skills?
+
+
+F3.  Were there any parts of the assignment that seemed _unnecessarily_ tedious?
+     (Some parts of software development are always tedious, of course.)
+
+
+F4.  Do you have any feedback and/or constructive criticism about how this
+     project can be made better in future iterations of CS130?

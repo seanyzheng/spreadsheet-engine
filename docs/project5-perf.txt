@@ -1,0 +1,32 @@
+## PROJECT5 PERFORMANCE IMPROVEMENT LOG ##
+
+## 3/11/24: 11:00 PM
+ - Theory:    Updating cells has slowed dramatically due to evaluating cells at the
+              beginning of the topological ordering whose values have not changed,
+              and therefore do not need to be reevaluated.
+ - Rationale: Between project3 (in which our perf tests passed) and project4
+              (in which our perf tests failed dramatically), we removed a flag
+              which became true only once a cell needed to change in updating
+              cells, and then only evaluated when that flag was true. Now, there
+              are 500x as many calls to lark.visit, which are taking up the bulk 
+              of the time in our internal performance benchmarls, clearly 
+              awful.
+ - Outcome:   Restoring the found_first flag and finding a different way to
+              handle updating cells with evaluation time dependencies returned 
+              our internal benchmarks to what they used to be.
+
+## 3/12/24: 1:30 AM 
+ - Theory:    Loading, moving, and copying operations are slow due to extra calls
+              to update_cells that can be elimenated by only calling update_cells
+              one time at the end of the bulk operation.
+ - Rationale: Our internal benchmarks for the moving, copying, and loading
+              operations should hundreds of thousands of calls to the lark visit 
+              function. Clearly this is ridiculous. There is no reason to
+              evaluate a single cell in the workbook more than once when doing 
+              these bulk modifications unless there are functions in play (which 
+              there are not in our tests). The reason this happens is that for
+              every cell which we change in these processes, we call
+              set_cell_value which calls update_cells which evaluates all the
+              cells in the workbook.
+ - Outcome:   Shaved over a minute off of the move_cell benchmarks. Now it is very
+              reasonable in the amount of time it is taking.

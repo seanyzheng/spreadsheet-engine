@@ -1,0 +1,103 @@
+CS130 Project Review
+====================
+
+Team performing review:  Team Lion
+Work being reviewed:  Team Panther
+
+The first two sections are for reviewing the `sheets` library code itself,
+excluding the test code and other aspects of the project.  The remaining
+sections are for those other supporting parts of the project.
+
+Feedback comments on design aspects of the `sheets` library
+-----------------------------------------------------------
+
+Consider the overall design and structure of the `sheets` library from
+the perspective of the GRASP principles (Lecture 20) - in particular the
+principles of high cohesion and low coupling.  What areas of the project
+codebase are structured in a highly effective way?  What areas of the
+codebase could be restructured to have higher cohesion and/or lower
+coupling?  Give specific suggestions for how to achieve this in the code.
+
+Cohesion could be increased and coupling decreased by moving a lot of the 
+functionality that changes the internal states of a sheet or cell object out of
+the workbook into their respective classes. For example, the cell is the owner
+of its content string, and it doesn't require any additional context from other 
+systems in the workbook to parse it. The workbook on the other hand, needs to 
+move contents and values around in the workbook, but doesn't need to understand 
+how a cell actually parses its contents upon entry. Then moving the parsing
+and typing of a cell's contents string into the cell helps to decouple the Cell 
+class from the Workbook while increasing the cohesion of the Workbook by
+restricting the functionality of the Workbook to its own responsibilities. The
+same idea applies to several other areas in the Workbook, such as modifying the 
+extent of a sheet. A sheet needs only its own internal information to understand
+its extent, such that accomplishing this within the sheet class would help to 
+decouple the Sheet from the Workbook and increase cohesion from the Workbook. 
+This would also help to decrease the extreme length of the Workbook class.
+
+Feedback comments on implementation aspects of the `sheets` library
+-------------------------------------------------------------------
+
+Consider the actual implementation of the project from the perspectives
+of coding style (naming, commenting, code formatting, decomposition into
+functions, etc.), and idiomatic use of the Python language and language
+features.  What practices are used effectively in the codebase to make
+for concise, readable and maintainable code?  What practices could or
+should be incorporated to improve the quality, expressiveness, readability
+and maintainability of the code?
+
+In general, the readability and maintainability of the code is very good. The 
+code is well commented and most functions are reduced to a very manageable
+length. Can't find any spots of tricky code which are not accompanied by inline
+comments to explain what's happening or other issues like this. Naming 
+conventions are also followed and look good. The only complaint for this library 
+would be the extreme length of the Workbook file. This file seems to contain 
+almost all of the logic in the codebase, with the sub-objects contained within
+it being simple structs without much in the way of logic. Offloading some of
+this could help to make the workbook class much more readable and succint, which
+would help to increase maintainability.
+
+Feedback comments on testing aspects of the project
+---------------------------------------------------
+
+Consider the testing aspects of the project, from the perspective of "testing
+best practices" (Lectures 4-6):  completeness/thoroughness of testing,
+automation of testing, focus on testing the "most valuable" functionality vs.
+"trivial code," following the Arrange-Act-Assert pattern in individual tests,
+etc.  What testing practices are employed effectively in the project?  What
+testing practices should be incorporated to improve the quality-assurance
+aspects of the project?
+
+The test code is very well organized, well commented, and seems to stress the 
+important parts of the code as much as possible. The test code definitely does a
+good job following the Arrange-Act-Assert pattern very well.
+
+There is also a really nice structure to their test files, having a specific
+file for each main functionality of their code which makes it easy to organize
+find certain aspects of the code. Each test function has a docstring that
+explains what they are testing, increasing readability and understandability of
+the code.
+
+
+Consider the implementation quality of the testing code itself, in the same
+areas described in the previous section.  What practices are used effectively
+in the testing code to make it concise, readable and maintainable?  What
+practices could or should be incorporated to improve the quality of the
+testing code?
+
+The one issue noted with the testing code is that there are some larger sections
+within the test code which are commented out, and so should either be removed,
+uncommented, or there should be comments to explain why those tests are
+currently inactive. For example, in `test_formula_evaluator.py` at lines 163, 
+178, 191, 204, 543, 563, etc. Otherwise all of the tests are named well, commented
+well, and are consistent.
+
+
+Feedback comments on other aspects of the project
+-------------------------------------------------
+
+If you have any other comments - compliments or suggestions for improvement -
+that aren't covered by previous sections, please include them here.
+
+Your consistent use of private/public methods throughout the code base is nice. 
+Maintaining that nice consistent strong API for the interaction of each class is
+great for the maintainability and structure of the code.

@@ -1,0 +1,151 @@
+CS130 Project 5 - Design Document
+=================================
+
+Please answer all questions in this design document.  Note that the final
+feedback section is optional, and you are not required to answer it if you
+don't want to.
+
+Unanswered or incompletely answered questions, or answers that don't actually
+match the code/repository, will result in deductions.
+
+Answers don't have to be deeply detailed!  We are mainly looking for an
+overview or summary description of how your project works, and your team's
+experiences working on this project.
+
+Logistics (7 points)
+--------------------
+
+L1.  [2pts] Enumerate all teammates here.
+
+Edward Speer, Ryan Wong, Sean Zheng, Rohan Jha
+
+
+L2.  [2pts] What did each teammate focus on during this project?
+
+Edward - Performance improvements from project4
+Sean - Repairing all failed acceptance tests from project4
+Rohan - Implementing sorting operations
+Ryan - Performance improvements from project4
+
+
+L3.  [3pts] Approximately how many hours did each teammate spend on the project?
+
+Around 8
+
+Spreadsheet Engine Design (10 points)
+-------------------------------------
+
+D1.  [4pts] Give an overview of how you implemented sorting.  Do you sort the
+     rows directly?  Do you use adapter objects instead?  Some other technique?
+
+     For our sorting method we implemented a row adapter class that initialized 
+     the columns being sorted, row data, and row indices, and contained methods 
+     for comparing less than and equal to operations. We then used the cmp method 
+     in functool to pass this Row class object into the sorted method in Python. 
+     We apply this to every single row, by storing their contenst temporariliy in 
+     order to deal with formula references and then re inserting post sort. 
+
+D2.  [3pts] How does your implementation solve the problem of supporting the
+     user-specified row ordering based on both the columns and the ordering to
+     sort by?  Did you create any classes or functions to help specifically with
+     this task?
+
+     Our Row adapter class helps sort the objects based on priority, and 
+     facilitates comparisons such as less than and equal to, in doing so it 
+     returns boolean values with conditionals placed upon whether we require 
+     ascending or descending. It also contains an attribute called sort_cols 
+     which contains the desired columns to sort the rows by. 
+
+
+D3.  [3pts] Briefly describe the changes you made to your spreadsheet engine to
+     satisfy the stricter cell-change notification behaviors.  Did you find this
+     to be largely straightforward to change?  Why or why not?
+
+     This was incredibly straighforward to implement. The behavior was already 
+     ensured for any cells which were not changed by bulk operations such as
+     moving or copying cells. In the process of these bulk operations, the notifs
+     could be sent many times. However, we changed out code for performance 
+     reasons such that the update_cells function would only be called once by the 
+     API call, which then meant that for free, the notifs would only be sent once 
+     per API call. In this function, we just collect of cells whose values are no 
+     longer what they used to be (a set meaning each entry is stored only once), 
+     then at the end send notifications for each cell. The only potential
+     challenge to this approach would be if somehow a function changed value and
+     then changed back due to being evaluated with evaluation time dependencies 
+     more than once, but I have not been able to come up with an example of this 
+     behavior that breaks the system at all.
+
+Performance Improvement (13 pts)
+--------------------------------
+
+In this project you must improve the performance of operations that involve
+bulk updating of cell formulas and/or values.  In the previous project your
+team should have written some performance-testing code in preparation for this
+effort, and should have run it under a profiler to get an initial sense of
+where improvements can be made.  In this project you need to follow through on
+this setup, and address performance issues in your code.
+
+P1.  [7pts] Give a brief overview of 2-3 of the worst hot-spots you identified
+     in your performance testing and analysis.  For each one, describe how your
+     team was able to resolve it.
+
+     The only hot spot in the code was in update_cells, where lark.visit was being 
+     called 500x the necessary number of calls per API call for some operations. 
+     This was an easy fix - For bulk moving/copying operations, we 
+     were calling our set_cell_contents method on every cell which needed to change. 
+     set_cell_contents then ran update_cells, which therefore meant the update was 
+     called way too many times. To fix this, we abstracted the content updating portion
+     of the function to a helper method, then only call update_cells once. This 
+     reduces the number of visits to the minimum, VASTLY improving the performance.
+     For single update operations, this was due to updating the entire topological 
+     ordering rather than only the parts that changed, a regression due to the 
+     found_first flag being removed during project4. This was repaired by adding
+     the flag back and making conditional functions an exception to the flag
+     (conditionals being the reason the flag was originally removed).
+
+
+P2.  [3pts] Did your team try anything to address performance issues and find
+     that it didn't improve things at all?  If so, were you able to identify why
+     the intended fix didn't produce the desired benefit?
+
+     This didn't happen on this project.
+
+
+P3.  [3pts] Did your performance updates cause any regressions in functionality?
+     If so, briefly describe any issues that emerged.  How were these issues
+     identified (e.g. automated test failures, manual testing, etc.)?  How
+     quickly were issues identified?
+
+     The only regression was one that we knew would occur. When we resumed
+     iterating over the topological ordering and finding the first cell we expected
+     to change before beginning to evaluate meant that some conditionals were not 
+     evaluated with their evaluation time dependencies correctly. This was 
+     identified by a test failure immediately and was fixed by 
+     using regular expressions to quickly determine if a cell contained a 
+     conditional, and then making this an exception to the rule such that conditionals 
+     were always evaluated.
+
+
+Section F:  CS130 Project 4 Feedback [OPTIONAL]
+-----------------------------------------------
+
+These questions are OPTIONAL, and you do not need to answer them.  Your grade
+will not be affected by answering or not answering them.  Also, your grade will
+not be affected by negative feedback - we want to know what went poorly so that
+we can improve future versions of the course.
+
+F1.  What parts of the assignment did you find highly enjoyable?  Conversely,
+     what parts of the assignment did you find unenjoyable?
+
+
+F2.  What parts of the assignment helped you learn more about software
+     engineering best-practices, or other useful development skills?
+     What parts were not helpful in learning these skills?
+
+
+F3.  Were there any parts of the assignment that seemed _unnecessarily_ tedious?
+     (Some parts of software development are always tedious, of course.)
+
+
+F4.  Do you have any feedback and/or constructive criticism about how this
+     project can be made better in future iterations of CS130?

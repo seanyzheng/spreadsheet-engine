@@ -1,0 +1,209 @@
+CS130 Project 2 - Design Document
+=================================
+
+Please answer all questions in this design document.  Note that the final
+feedback section is optional, and you are not required to answer it if you
+don't want to.
+
+Unanswered or incompletely answered questions, or answers that don't actually
+match the code/repository, will result in deductions.
+
+Answers don't have to be deeply detailed!  We are mainly looking for an
+overview or summary description of how your project works, and your team's
+experiences working on this project.
+
+Logistics (7 pts)
+-----------------
+
+L1.  [2pts] Enumerate all teammates here.
+
+Edward Speer, Sean Zheng, Rohan Jha, Ryan Wong
+
+
+L2.  [2pts] What did each teammate focus on during this project?
+
+Sean: saving to and loading from json functionality, testing
+Ryan: performance testing
+Rohan: Worked on reordering and copying spreadsheets, testing
+Edward: Sheet renaming, cell update notifications, and performance improvements
+
+L3.  [3pts] Approximately how many hours did each teammate spend on the project?
+8 hours per person
+
+Spreadsheet Engine Design (11 pts)
+----------------------------------
+
+D1.  [3pts] Briefly describe how your workbook-loading code operates. Does
+     it do anything sophisticated to optimize the performance of loading a
+     workbook, such as deferring cell-value update calculations, or analyzing
+     the graph of cell dependencies?
+     
+We decided to incur some technical debt and sacrifice performance for the sake
+of a confidently functional and easily understandable base for the json loading
+function. However, in the future, perhaps in the next project, we will work on
+optimizing speed.
+
+D2.  [4pts] Sheet-level operations like copying a sheet, deleting a sheet,
+     renaming a sheet, or even creating a new sheet, can cause cell values
+     to be updated.  How does your workbook identify such cells and ensure
+     that they are updated properly?
+
+Any of these sheet level operations are followed by a call to our generic
+update_cells function, which makes a call to Tajan’s algorithm and updates the
+cells according to a topological ordering. Since this functionality is made
+generic it is simply a call to the same function any time an operation which may
+have impacted cell values is done.
+
+
+D3.  [4pts] When renaming a sheet, cells with formulas that explicitly
+     reference the renamed sheet must be updated with the new sheet name.
+     Give an overview of how your implementation updates these formulas.
+In order to identify formulas that explicitly reference the renamed sheet, we
+iterate over the dependencies of cells which have dependencies in our dependency
+graph. If the renamed sheet is found in the set() of dependencies for a cell,
+then the contents are processed using compiled regular expressions in the
+following way:
+
+ - First, any double quoted strings (string literals in the formulas) are found
+ using re.findall() and replaced in a COPY of the string in a way that maintains
+ the length of the string, i.e (‘=”STRING”&Sheet1!A1’ => ‘=........&Sheet1!A1’)
+
+ - Next, any sheet names are found by using a complicated regular expression which
+ matches with only valid sheet names which are preceded by operators or
+ whitespace and are followed by exclamation marks.
+ - Those sheet names are compared both to the name we are trying to replace and
+ to a regexp describing those valid sheet names which must be encapsulated by
+ single quotes in formulas
+ - If needing to be replaced, the name is replaced in the original string, and
+ otherwise, the quoting of the string is handled appropriately in the original
+ string.
+ - Cell contents are set to the newly processed formula string.
+
+
+Informal Design Reviews (16 pts)
+--------------------------------
+
+R1.  [4pts] What insights did your team gain regarding the design of *your
+     own* spreadsheet engine code?  What parts of your design are you happy
+     with?  What parts might require further attention in the future?
+
+Many of our decisions and problems faced matched with the other group, so it was
+reassuring to see that others took the same approach as ours, and gave us
+confidence we were on the right track and that our abstractions were
+well-designed. Their doubly linked graph implementation gave us a lot to think
+about in terms of the performance of an insertion operation vs. the performance
+of the cycle detection and reference finding operations..
+
+R2.  [4pts] Did you feel like you were effective at helping other teams
+     assess *their* software designs?  Briefly discuss what went well, and
+     what could have gone better, in your interview of another team.
+
+Our situation was unique because the team we were interviewing was still working
+on project 1, so we talked about the challenges they were currently facing, and
+for the ones we also encountered, we advised them with some suggestions that
+helped us work through them
+
+R3.  [4pts] How closely did your team's design match the designs of the
+     other teams you talked with?  Briefly discuss significant similaries
+     and differences between your team's approach and other teams' approaches.
+    
+Our team’s design was very similar to the team we interviewed. In terms of
+structure and abstractions, our implementations were practically identical. The
+main difference was the amount of technical debt we decided to incur. We decided
+to implement an interactive version of Tarjan’s algorithm from the beginning so
+we wouldn’t have to touch that part for the rest of the project, but the team we
+interviewed decided to get a simple DFS cycle detection sorted out first and
+then planned to build off/modify it later on. Their graph was also doubly linked,
+cells could access the cells they depend on as well as the cells that depend on
+them. However for the purposes of project 1, cells only need to reference the
+cells they depend on, so they were considering removing that functionality.
+An undirected graph like this also increases the time complexity of the
+insertion operation which may be more common than the operations which it would
+speed up, and so we put a lot of thought into the pros and cons of this approach.
+
+R4.  [4pts] Which GRASP principles were the most pertinent in your
+     discussions?  How much of your discussions referenced the GRASP
+     Principles?
+
+In our interview we discussed concepts like cohesion and coupling. We discussed
+how both teams had similar characteristics of high cohesion and moderate
+coupling. This is because each module has a clear purpose, and the coupling
+seems to be moderate between the core components (Workbook, Spreadsheet, Cell).
+We discussed potentially implementing more interface abstraction by using
+interfaces for interaction between modules which would make the code more 
+lexible and reduce the dependency on concrete implementations. We also discussed
+that we used private and public methods and attributes for the different modules,
+which though are not enforced by Python, are enforced by our linter and so we
+ensure we can control functionality separation between classes.
+
+Performance Analysis (16 pts)
+-----------------------------
+
+In this project you must measure and analyze the performance of two central
+areas of your spreadsheet engine.  Using pair programming, construct some
+performance tests to exercise these aspects of your engine, and use a profiler
+to identify where your program is spending the bulk of its time.
+
+A1.  [4pts] Briefly enumerate the performance tests you created to exercise
+     your implementation, along with the teammates that collaborated to
+     implement each of them.
+
+Ryan and Edward helped to create the performance tests to exercise our implementation. 
+test_chain() tests the performance of the workbook when the first cell of the
+chain of cells is changed. 
+test_references_one() tests the performance of the workbook when many cells
+reference one cell and the one cell is changed. 
+test_many_references() tests the performance of the workbook when a lot of cells
+reference other cells and one the values of one sheet is changed.
+test_cycle() tests the performance of the workbook when a cycle is created. 
+test_make_break_cycle() tests the performance of the workbook when a cycle is
+made and broken a number of times. 
+test_rename() tests the performance of the workbook when a sheet is renamed and
+cells that reference cells in the renamed sheet are updated.
+
+A2.  [2pts] What profiler did you choose to run your performance tests with?
+     Why? Give an example of how to invoke one of your tests with the profiler.
+
+We used cProfile to run our performance tests because it was recommended in the
+Project2 spec. It also has reasonable overhead and was fairly understandable
+while reading the documentation. It was also easy to interpret the stats when
+outputted in the terminal. The way that we invoked one of our tests with the
+profiler, specifically the test_chain() function was to set it up as we would a
+normal test, initializing a workbook and profiler, creating a new sheet and
+setting its contents, and creating the chain. After the setup was completed, we
+enabled the profiler to run, set the first cell of the chain to a new value, and
+then disabled the profiler and printed the stats. This way we can isolate the
+functionality we are actually trying to test, which in the case, was testing the
+performance for when the first cell of a chain was changed. 
+
+
+A3.  [6pts] What are ~3 of the most significant hot-spots you identified in your
+     performance testing?  Did you expect these hot-spots, or were they
+     surprising to you?
+
+Here are the 3 most significant hotspots we identified in our performance testing:
+Parse
+Transform
+Running the graph algorithm
+
+These were expected hotspots because the lark internals and getting the formulas
+to evaluate take time to construct the tree and get the contents and values.
+Running the graph algorithm was also expected because it has to get the
+dependencies and update all of the cells that need to be changed when a cell is
+changed. 
+
+
+A4.  [4pts] Reflect on the experience of pair-programming as you constructed
+     these tests. What went well with it? What would you like to try to do
+     better in the future?
+
+We enjoyed the experience of pair-programming as we constructed these tests.
+There were good ideas that we talked about and it was a good way to
+collaboratively problem solve. We believe that it improved code quality with 2
+sets of eyes on the code and we were able to design more reliable tests. It also
+helped with better understanding since we were able to bounce ideas off of each
+other and share knowledge that we both have. In the future we may try to have
+better time management skills. Pair programming comes with longer working
+sessions because there are conversations that are being had that slow down the
+process of making the tests. Even though the majority of the conversations are
+useful, sometimes we get off topic and that is something that we can work on. 
